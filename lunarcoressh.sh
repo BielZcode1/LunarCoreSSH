@@ -3,21 +3,17 @@
 DB="/etc/vpnusers.db"
 LOG="/var/log/vpnmanager.log"
 
-# Estilos de cores
+# Proteção do banco
+proteger_db() { chattr +i "$DB" 2>/dev/null; }
+desproteger_db() { chattr -i "$DB" 2>/dev/null; }
+[ ! -f "$DB" ] && touch "$DB" && proteger_db
+
+# Cores
 GREEN='\033[1;32m'
 ORANGE='\033[1;33m'
 BLUE='\033[1;34m'
 RED='\033[1;31m'
 NC='\033[0m'
-
-# Proteção do banco
-proteger_db() {
-    chattr +i "$DB" 2>/dev/null
-}
-desproteger_db() {
-    chattr -i "$DB" 2>/dev/null
-}
-[ ! -f "$DB" ] && touch "$DB" && proteger_db
 
 # Criar usuário
 criar_usuario() {
@@ -105,7 +101,7 @@ contar_usuarios() {
     read -p "Pressione Enter para voltar ao menu..."
 }
 
-# Monitoramento do sistema
+# Monitoramento
 monitorar_sistema() {
     echo -e "${BLUE}━━━━━━━━━━━ MONITORAMENTO DO SISTEMA ━━━━━━━━━━━${NC}"
     echo -e "${ORANGE}Arquitetura:${NC} $(uname -m)"
@@ -133,34 +129,42 @@ monitorar_sistema() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 }
 
-# Conexão HTTP Injector
-conexao_http_injector() {
+# Instalar Stunnel
+instalar_stunnel() {
     clear
     echo -e "${ORANGE}╔═══════════════════════════════════════════════╗"
-    echo -e "║   ${GREEN}Configuração HTTP Injector para celular${ORANGE}  ║"
+    echo -e "║         ${BLUE}Instalar SSL/TLS Proxy (Stunnel)${ORANGE}       ║"
     echo -e "╚═══════════════════════════════════════════════╝${NC}"
-
-    IP_SERVER=$(curl -s ifconfig.me)
-    PORTA_SSH=22
-
-    read -p "Informe um host (ex: m.youtube.com): " host_http
-    read -p "Nome do usuário SSH: " usuario
-    read -p "Senha do usuário: " senha
-
     echo ""
-    echo -e "${BLUE}━━━━━━━━━━━━━━ CONFIGURAÇÃO ━━━━━━━━━━━━━━${NC}"
-    echo -e "${ORANGE}🔸 Payload:${NC}"
-    echo -e "GET http://$host_http/ HTTP/1.1[crlf]Host: $host_http[crlf]Connection: Keep-Alive[crlf]User-Agent: [ua][crlf][crlf]"
+    echo -e "${BLUE}🔧 Instalando dependências...${NC}"
+    apt install -y stunnel4 openssl > /dev/null 2>&1
 
-    echo -e "\n${ORANGE}🔸 SSH Host:${NC} $IP_SERVER"
-    echo -e "${ORANGE}🔸 Porta:${NC} $PORTA_SSH"
-    echo -e "${ORANGE}🔸 Usuário:${NC} $usuario"
-    echo -e "${ORANGE}🔸 Senha:${NC} $senha"
+    echo -e "${BLUE}🔐 Gerando certificado autoassinado...${NC}"
+    openssl req -new -x509 -days 1095 -nodes \
+    -out /etc/stunnel/stunnel.pem -keyout /etc/stunnel/stunnel.pem \
+    -subj "/C=BR/ST=SP/L=SP/O=LunarCoreSSH/CN=$(curl -s ifconfig.me)" > /dev/null 2>&1
 
-    echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
-    echo -e "${GREEN}✅ Copie os dados acima no seu HTTP Injector.${NC}"
+    chmod 600 /etc/stunnel/stunnel.pem
+    echo "ENABLED=1" > /etc/default/stunnel4
+
+    echo -e "${BLUE}⚙️ Configurando Stunnel na porta 443...${NC}"
+    cat > /etc/stunnel/stunnel.conf <<EOF
+cert = /etc/stunnel/stunnel.pem
+client = no
+
+[ssh]
+accept = 443
+connect = 22
+EOF
+
+    systemctl restart stunnel4
+    systemctl enable stunnel4 > /dev/null 2>&1
+
+    echo -e "${GREEN}✅ Stunnel instalado com sucesso!${NC}"
+    echo -e "${BLUE}🔒 Agora é possível usar SSL/SNI com apps como HTTP Injector!${NC}"
     echo ""
-    read -p "Pressione Enter para voltar ao menu..."
+    echo -e "${ORANGE}📶 Conecte com IP do VPS e porta 443, usando um Host SNI válido.${NC}"
+    sleep 4
 }
 
 # Menu principal
@@ -178,7 +182,8 @@ menu() {
         echo -e "4. Ver usuários online"
         echo -e "5. Total de usuários"
         echo -e "6. Fechar menu"
-        echo -e "7. Categoria: Conexões para VPN (HTTP Injector)"
+        echo -e "7. Categoria: Conexões para VPN"
+        echo -e "   └─ 1) Instalar SSL/TLS Proxy (Stunnel)"
         echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         read -p "Escolha uma opção: " opcao
 
@@ -189,7 +194,7 @@ menu() {
             4) usuarios_online ;;
             5) contar_usuarios ;;
             6) echo -e "${GREEN}Saindo do menu...${NC}"; sleep 1; break ;;
-            7) conexao_http_injector ;;
+            7) instalar_stunnel ;;
             *) echo -e "${RED}❌ Opção inválida!${NC}"; sleep 2 ;;
         esac
     done
