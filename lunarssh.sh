@@ -42,6 +42,7 @@ cancelar_script() {
 
 # Segurança: Root
 if [[ "$EUID" -ne 0 ]]; then
+  clear
   echo -e "${RED}❌ Este script deve ser executado como root!${NC}"
   exit 1
 fi
