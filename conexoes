@@ -1,0 +1,11 @@
+#!/bin/bash
+# /etc/sshmanager/conexoes.sh
+
+RED='\e[1;31m'; GREEN='\e[1;32m'; CYAN='\e[1;36m'; NC='\e[0m'
+clear
+echo -e "${CYAN}🌐 CONEXÕES ATIVAS POR SERVIÇO${NC}"
+ss -tunlp | grep -E 'dropbear|stunnel|squid|badvpn' | awk '{print $5, $7}' | sort | uniq | while read line; do
+  echo -e "${GREEN}$line${NC}"
+done
+read -p "Pressione ENTER para voltar..."
+clear
