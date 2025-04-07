@@ -37,14 +37,14 @@ cancelar_script() {
   echo -e "\n${RED}[!] Instalação cancelada. Saindo...${NC}"
   sleep 1
   clear
-  exit 0
+  return 1
 }
 
 # Segurança: Root
 if [[ "$EUID" -ne 0 ]]; then
   clear
   echo -e "${RED}❌ Este script deve ser executado como root!${NC}"
-  exit 1
+  return 1
 fi
 
 # Ctrl+C
