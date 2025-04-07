@@ -155,7 +155,7 @@ vpn_conexoes() {
         case $conexao_opcao in
             1)
                 echo -e "${BLUE}🔧 Instalando e ativando Stunnel...${NC}"
-                apt install stunnel4 -y &>/dev/null
+                apt install stunnel4 -y >/dev/null 2>&1
                 cat > /etc/stunnel/stunnel.conf <<EOF
 client = no
 [SSL]
