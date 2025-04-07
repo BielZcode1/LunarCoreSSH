@@ -8,12 +8,12 @@ BLUE='\e[1;34m'
 CYAN='\e[1;36m'
 NC='\e[0m'
 
-# Verifica se o script está sendo sourced
+# Verifica se está sendo sourced
 is_sourced() {
   [ "${BASH_SOURCE[0]}" != "$0" ]
 }
 
-# Estilo
+# Estilo visual
 linha() {
   echo -e "${BLUE}══════════════════════════════════════════════════${NC}"
 }
@@ -38,7 +38,6 @@ barra_carregando() {
   echo -e "${NC}"
 }
 
-# Cancelar script
 cancelar_script() {
   echo -e "\n${RED}[!] Instalação cancelada. Saindo...${NC}"
   sleep 1
@@ -50,15 +49,11 @@ cancelar_script() {
   fi
 }
 
-# Segurança: Root
+# Root
 if [[ "$EUID" -ne 0 ]]; then
   clear
   echo -e "${RED}❌ Este script deve ser executado como root!${NC}"
-  if is_sourced; then
-    return 1
-  else
-    exit 1
-  fi
+  if is_sourced; then return 1; else exit 1; fi
 fi
 
 # Ctrl+C
@@ -88,28 +83,39 @@ apt upgrade -y > /dev/null 2>&1
 # Pacotes essenciais
 linha
 barra_animada "Instalando pacotes essenciais"
-apt install -y curl git screen net-tools unzip openssh-server > /dev/null 2>&1
+apt install -y curl wget git screen net-tools unzip openssh-server > /dev/null 2>&1
 
-# Preparar diretório
+# Criar diretório
 linha
 barra_animada "Criando diretório do sistema"
 rm -rf /etc/sshmanager > /dev/null 2>&1
 mkdir -p /etc/sshmanager
+cd /etc/sshmanager
 
-# Clonar repositório
-REPO_URL="https://github.com/BielZcode1/LunarCoreSSH/tree/main" # Altere para o seu
-DEST_DIR="/etc/sshmanager"
+# Lista de scripts para baixar
+SCRIPTS=(
+  menu.sh
+  sistema.sh
+  criaruser.sh
+  deleteuser.sh
+  menu_conexoes.sh
+  monitorar.sh
+  conexoes.sh
+)
 
+# Baixando scripts
 linha
-barra_animada "Clonando arquivos do GitHub"
-git clone "$REPO_URL" "$DEST_DIR" > /dev/null 2>&1
+for script in "${SCRIPTS[@]}"; do
+  barra_animada "Baixando $script"
+  wget -q --show-progress "https://raw.githubusercontent.com/BielZcode1/LunarCoreSSH/main/$script"
+done
 
 # Permissões e comando global
 barra_animada "Aplicando permissões"
-chmod +x $DEST_DIR/*.sh
+chmod +x *.sh
 
 barra_animada "Criando comando global"
-ln -sf $DEST_DIR/menu.sh /usr/bin/sshmanager
+ln -sf /etc/sshmanager/menu.sh /usr/bin/sshmanager
 
 linha
 echo -e "${GREEN}✅ Instalação concluída com sucesso!${NC}"
