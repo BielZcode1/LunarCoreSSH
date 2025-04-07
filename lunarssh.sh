@@ -8,7 +8,12 @@ BLUE='\e[1;34m'
 CYAN='\e[1;36m'
 NC='\e[0m'
 
-# Funções visuais
+# Verifica se o script está sendo sourced
+is_sourced() {
+  [ "${BASH_SOURCE[0]}" != "$0" ]
+}
+
+# Estilo
 linha() {
   echo -e "${BLUE}══════════════════════════════════════════════════${NC}"
 }
@@ -33,18 +38,27 @@ barra_carregando() {
   echo -e "${NC}"
 }
 
+# Cancelar script
 cancelar_script() {
   echo -e "\n${RED}[!] Instalação cancelada. Saindo...${NC}"
   sleep 1
   clear
-  return 1
+  if is_sourced; then
+    return 0
+  else
+    exit 0
+  fi
 }
 
 # Segurança: Root
 if [[ "$EUID" -ne 0 ]]; then
   clear
   echo -e "${RED}❌ Este script deve ser executado como root!${NC}"
-  return 1
+  if is_sourced; then
+    return 1
+  else
+    exit 1
+  fi
 fi
 
 # Ctrl+C
@@ -71,24 +85,26 @@ barra_animada "Atualizando pacotes"
 apt update -y > /dev/null 2>&1
 apt upgrade -y > /dev/null 2>&1
 
-# Essenciais
+# Pacotes essenciais
 linha
 barra_animada "Instalando pacotes essenciais"
 apt install -y curl git screen net-tools unzip openssh-server > /dev/null 2>&1
 
-# Criar pasta
+# Preparar diretório
 linha
 barra_animada "Criando diretório do sistema"
+rm -rf /etc/sshmanager > /dev/null 2>&1
 mkdir -p /etc/sshmanager
 
-# Baixar arquivos do painel
-REPO_URL="https://github.com/seuusuario/sshmanager" # altere aqui
+# Clonar repositório
+REPO_URL="https://github.com/seuusuario/sshmanager" # Altere para o seu
 DEST_DIR="/etc/sshmanager"
 
 linha
 barra_animada "Clonando arquivos do GitHub"
 git clone "$REPO_URL" "$DEST_DIR" > /dev/null 2>&1
 
+# Permissões e comando global
 barra_animada "Aplicando permissões"
 chmod +x $DEST_DIR/*.sh
 
@@ -96,7 +112,7 @@ barra_animada "Criando comando global"
 ln -sf $DEST_DIR/menu.sh /usr/bin/sshmanager
 
 linha
-echo -e "${GREEN}✅ Instalação concluída!${NC}"
+echo -e "${GREEN}✅ Instalação concluída com sucesso!${NC}"
 linha
 echo -e "${YELLOW}🟢 Execute com:${NC} ${CYAN}sshmanager${NC}\n"
 
