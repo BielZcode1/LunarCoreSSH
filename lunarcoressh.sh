@@ -101,6 +101,7 @@ SCRIPTS=(
   menu_conexoes.sh
   monitorar.sh
   conexoes.sh
+  monitorarusuarios.sh
 )
 
 # Baixando scripts
