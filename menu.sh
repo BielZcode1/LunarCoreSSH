@@ -1,80 +1,66 @@
 #!/bin/bash
 
-# Cores
+# Cores vibrantes
 RED='\e[1;31m'
 GREEN='\e[1;32m'
 YELLOW='\e[1;33m'
+ORANGE='\e[38;5;208m'
 BLUE='\e[1;34m'
-CYAN='\e[1;36m'
+MAGENTA='\e[1;35m'
+CYAN='\e[96m'
 NC='\e[0m'
 
-# Limpa ao entrar
-clear
-
-# Funções visuais
+# Linha estilizada
 linha() {
-  echo -e "${BLUE}═══════════════════════════════════════════════════════${NC}"
+  echo -e "${ORANGE}══════════════════════════════════════════════════════════${NC}"
 }
 
-titulo() {
-  linha
-  echo -e "${CYAN}             🌙 PAINEL SSHMANAGER - LUNARSSH 🌙${NC}"
-  linha
-}
+# Informações do sistema
+RAM_TOTAL=$(free -h | awk '/Mem:/ {print $2}')
+RAM_USADA=$(free -h | awk '/Mem:/ {print $3}')
+CPU_CORES=$(nproc)
+CPU_MODEL=$(awk -F: '/model name/ {print $2}' /proc/cpuinfo | head -n1)
+USUARIOS=$(cut -d: -f1 /etc/passwd | grep -vE "^(root|nobody|_.*)" | wc -l)
+DATA_HORA=$(date '+%d/%m/%Y %H:%M:%S')
+REDE=$(ip route get 1 | awk '{print $NF;exit}')
+IP_PUB=$(curl -s ifconfig.me)
+HOST=$(hostname)
 
-menu() {
-  echo -e "${YELLOW}Selecione uma opção:${NC}"
-  echo -e "${GREEN}[1]${NC} Criar usuário VPN"
-  echo -e "${GREEN}[2]${NC} Remover usuário VPN"
-  echo -e "${GREEN}[3]${NC} Monitoramento (Online, Limites)"
-  echo -e "${GREEN}[4]${NC} Gerenciar conexões (Dropbear, Stunnel, Squid, BadVPN)"
-  echo -e "${GREEN}[5]${NC} Informações do sistema"
-  echo -e "${GREEN}[0]${NC} Sair para o terminal"
-}
-
-# Loop principal
+# Loop do menu
 while true; do
   clear
-  titulo
-  menu
   linha
-  read -p $'\n➡️  Digite sua opção: ' opcao
+  echo -e "${CYAN}       ▸ ${ORANGE}SSHMANAGER - PAINEL PRINCIPAL${CYAN} ◂${NC}"
+  linha
+  echo -e "${YELLOW}📆 Data/Hora:     ${NC}$DATA_HORA"
+  echo -e "${YELLOW}🖥️ Host:           ${NC}$HOST"
+  echo -e "${YELLOW}🌐 IP Público:     ${NC}$IP_PUB"
+  echo -e "${YELLOW}📡 Interface:      ${NC}$REDE"
+  echo -e "${YELLOW}🧠 RAM Usada:      ${NC}$RAM_USADA / $RAM_TOTAL"
+  echo -e "${YELLOW}🧮 CPU:            ${NC}${CYAN}$CPU_CORES núcleos${NC} - ${MAGENTA}$CPU_MODEL${NC}"
+  echo -e "${YELLOW}👥 Usuários Criados:${NC} $USUARIOS"
+  linha
+  echo -e "${GREEN} 1) ${NC}➕ Criar Usuário"
+  echo -e "${GREEN} 2) ${NC}❌ Remover Usuário"
+  echo -e "${GREEN} 3) ${NC}📊 Monitorar Usuários"
+  echo -e "${GREEN} 4) ${NC}🔌 Conexões & Serviços"
+  echo -e "${GREEN} 5) ${NC}📋 Informações da VPS"
+  echo -e "${RED} 6) ${NC}🚪 Sair do Menu"
+  linha
+  read -p "▸ Escolha uma opção: " op
 
-  case $opcao in
-    1)
+  case $op in
+    1) bash /etc/sshmanager/criaruser.sh ;;
+    2) bash /etc/sshmanager/deleteuser.sh ;;
+    3) bash /etc/sshmanager/monitor.sh ;;
+    4) bash /etc/sshmanager/menu_conexoes.sh ;;
+    5) bash /etc/sshmanager/sistema.sh ;;
+    6)
+      echo -e "${ORANGE}Saindo do menu... pressione ENTER para finalizar.${NC}"
+      read
       clear
-      bash /etc/sshmanager/criaruser.sh
-      read -p $'\nPressione ENTER para voltar ao menu...'
+      return
       ;;
-    2)
-      clear
-      bash /etc/sshmanager/deleteuser.sh
-      read -p $'\nPressione ENTER para voltar ao menu...'
-      ;;
-    3)
-      clear
-      bash /etc/sshmanager/monitorar.sh
-      read -p $'\nPressione ENTER para voltar ao menu...'
-      ;;
-    4)
-      clear
-      bash /etc/sshmanager/menu_conexoes.sh
-      read -p $'\nPressione ENTER para voltar ao menu...'
-      ;;
-    5)
-      clear
-      bash /etc/sshmanager/sistema.sh
-      read -p $'\nPressione ENTER para voltar ao menu...'
-      ;;
-    0)
-      echo -e "${RED}Saindo do painel...${NC}"
-      sleep 1
-      clear
-      break
-      ;;
-    *)
-      echo -e "${RED}Opção inválida!${NC}"
-      sleep 1
-      ;;
+    *) echo -e "${RED}⚠️ Opção inválida!${NC}"; sleep 1 ;;
   esac
 done
