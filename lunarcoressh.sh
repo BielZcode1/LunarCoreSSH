@@ -3,48 +3,19 @@
 DB="/etc/vpnusers.db"
 LOG="/var/log/vpnmanager.log"
 
-# Funções de proteção do banco
-proteger_db() {
-    chattr +i "$DB" 2>/dev/null
-}
-desproteger_db() {
-    chattr -i "$DB" 2>/dev/null
-}
+# Proteção do banco
+proteger_db() { chattr +i "$DB" 2>/dev/null; }
+desproteger_db() { chattr -i "$DB" 2>/dev/null; }
 [ ! -f "$DB" ] && touch "$DB" && proteger_db
 
-# Estilos de cores
+# Cores
 GREEN='\033[1;32m'
 ORANGE='\033[1;33m'
 BLUE='\033[1;34m'
 RED='\033[1;31m'
-NC='\033[0m' # No color
-
-# Instalar Stunnel
-instalar_stunnel() {
-    clear
-    echo -e "${ORANGE}╔═══════════════════════════════════════════════╗"
-    echo -e "║        ${GREEN}Instalando SSL/TLS Proxy (Stunnel)${ORANGE}      ║"
-    echo -e "╚═══════════════════════════════════════════════╝${NC}"
-    sleep 1
-    apt update -y && apt install stunnel4 -y
-    cat > /etc/stunnel/stunnel.conf <<EOF
-cert = /etc/stunnel/stunnel.pem
-client = no
-delay = yes
-[ssh]
-accept = 443
-connect = 22
-EOF
-    openssl req -new -x509 -days 365 -nodes \
-    -out /etc/stunnel/stunnel.pem \
-    -keyout /etc/stunnel/stunnel.pem \
-    -subj "/C=BR/ST=RJ/L=VPN/O=LunarCore/OU=SSH/CN=localhost"
-    chmod 600 /etc/stunnel/stunnel.pem
-    sed -i 's/ENABLED=0/ENABLED=1/' /etc/default/stunnel4
-    systemctl enable stunnel4 && systemctl restart stunnel4
-    echo -e "${GREEN}✅ Stunnel instalado e rodando na porta 443!${NC}"
-    sleep 3
-}
+NC='\033[0m'
+VERDE="\033[1;32m●\033[0m"
+VERMELHO="\033[1;31m●\033[0m"
 
 # Criar usuário
 criar_usuario() {
@@ -80,7 +51,6 @@ deletar_usuario() {
     echo -e "${ORANGE}╔═══════════════════════════════════════════════╗"
     echo -e "║          ${RED}Remover usuário VPN${ORANGE}              ║"
     echo -e "╚═══════════════════════════════════════════════╝${NC}"
-
     read -p "Nome do usuário para deletar: " usuario
 
     if ! id "$usuario" &>/dev/null; then
@@ -160,22 +130,60 @@ monitorar_sistema() {
     echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
 }
 
-# Submenu: Conexões para VPN
-menu_conexoes() {
+# Menu de conexões VPN
+vpn_conexoes() {
     while true; do
         clear
         echo -e "${ORANGE}╔═══════════════════════════════════════════════╗"
-        echo -e "║       ${GREEN}Menu - Conexões para VPN${ORANGE}               ║"
+        echo -e "║        ${BLUE}Gerenciar Conexões para VPN${ORANGE}           ║"
         echo -e "╚═══════════════════════════════════════════════╝${NC}"
-        echo -e "${BLUE}1) Instalar SSL/TLS Proxy (Stunnel)"
-        echo -e "0) Voltar ao menu principal${NC}"
-        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+
+        if systemctl is-active --quiet stunnel4; then
+            stunnel_status="${VERDE} Ativo"
+        else
+            stunnel_status="${VERMELHO} Inativo"
+        fi
+
+        echo -e "${BLUE}━━━━━━━━━━━━━━ SERVIÇOS DISPONÍVEIS ━━━━━━━━━━━━━━${NC}"
+        echo -e "1. Instalar/Ativar SSL (Stunnel)     [Status: $stunnel_status]"
+        echo -e "2. Desativar SSL (Stunnel)"
+        echo -e "3. Ver conexões e portas ativas"
+        echo -e "4. Voltar ao menu principal"
+        echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         read -p "Escolha uma opção: " conexao_opcao
 
         case $conexao_opcao in
-            1) instalar_stunnel ;;
-            0) break ;;
-            *) echo -e "${RED}❌ Opção inválida!${NC}"; sleep 1 ;;
+            1)
+                echo -e "${BLUE}🔧 Instalando e ativando Stunnel...${NC}"
+                apt install stunnel4 -y &>/dev/null
+                cat > /etc/stunnel/stunnel.conf <<EOF
+client = no
+[SSL]
+accept = 443
+connect = 22
+EOF
+                echo "ENABLED=1" > /etc/default/stunnel4
+                systemctl enable stunnel4 &>/dev/null
+                systemctl restart stunnel4
+                echo -e "${GREEN}✅ Stunnel instalado e iniciado na porta 443 (→ 22)${NC}"
+                sleep 2
+                ;;
+            2)
+                echo -e "${RED}⛔ Parando Stunnel...${NC}"
+                systemctl stop stunnel4
+                systemctl disable stunnel4
+                echo -e "${GREEN}✔️ Stunnel desativado.${NC}"
+                sleep 2
+                ;;
+            3)
+                clear
+                echo -e "${ORANGE}📡 Conexões Ativas no Sistema:${NC}"
+                ss -tunlp | grep -E 'stunnel|ssh' || echo "Nenhuma conexão detectada"
+                echo ""
+                read -p "Pressione Enter para voltar..."
+                ;;
+            4) break ;;
+            *) echo -e "${RED}❌ Opção inválida!${NC}"; sleep 2 ;;
         esac
     done
 }
@@ -194,8 +202,8 @@ menu() {
         echo -e "3. Listar usuários"
         echo -e "4. Ver usuários online"
         echo -e "5. Total de usuários"
-        echo -e "6. Categoria: Conexões para VPN"
-        echo -e "7. Fechar menu"
+        echo -e "6. Fechar menu"
+        echo -e "7. Gerenciar conexões para VPN"
         echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
         read -p "Escolha uma opção: " opcao
 
@@ -205,8 +213,8 @@ menu() {
             3) listar_usuarios ;;
             4) usuarios_online ;;
             5) contar_usuarios ;;
-            6) menu_conexoes ;;
-            7) echo -e "${GREEN}Saindo do menu...${NC}"; sleep 1; break ;;
+            6) echo -e "${GREEN}Saindo do menu...${NC}"; sleep 1; break ;;
+            7) vpn_conexoes ;;
             *) echo -e "${RED}❌ Opção inválida!${NC}"; sleep 2 ;;
         esac
     done
